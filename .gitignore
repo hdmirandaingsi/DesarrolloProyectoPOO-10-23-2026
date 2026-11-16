@@ -1,3 +1,7 @@
 target/
 nbproject/private/
 *.class
+db.properties
+.env
+.env.*
+!.env.example

@@ -1,0 +1,6 @@
+# Copy to db.properties (ignored by Git) and provide local connection values.
+db.host=localhost
+db.port=3306
+db.name=hotel_mvc_db
+db.user=YOUR_MYSQL_USER
+db.password=REPLACE_WITH_LOCAL_SECRET
