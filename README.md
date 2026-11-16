@@ -1,67 +1,60 @@
-# Sistema de Hotel – Proyecto POO (Java 11 + Swing + MySQL)
+# Sistema de reservas de hotel
 
-Arquitectura **MVC**:
+Aplicación Java 11 para administrar clientes, habitaciones y reservas. Sigue una arquitectura MVC y ofrece interfaces web, Swing y CLI, con persistencia MySQL mediante JDBC. Las tarifas se calculan polimórficamente para habitaciones simples, dobles y suites.
 
-| Paquete | Responsable | Contenido |
-|---|---|---|
-| `modelo` | hdmirandaingsi | Entidades, interfaces `I...DAO` y las clases DAO con JDBC |
-| `vista` | Kevin | Formularios Java Swing (login, menú, módulos) |
-| `controlador` | René | Validaciones y lógica entre la vista y el modelo |
-| `util` | René | `Conexion` (JDBC) |
+Esta versión consolida los archivos del proyecto y los organiza en la estructura Maven del repositorio. Reconoce y conserva el trabajo previo del equipo como parte de su historial; la reorganización busca facilitar la compilación, la configuración local y el mantenimiento, sin atribuir aportes individuales cuando no es posible verificarlos en cada archivo.
 
-## Cómo empezar (todos)
+## Requisitos
 
-1. Tener **MySQL** corriendo en su PC (MySQL Server + Workbench, o XAMPP).
-2. Con el usuario **root**, ejecutar todo el contenido de `sql/hotel.sql`
-   (crea la base `hotel`, el usuario `hotel_user` / `hotel123`, las tablas y datos de prueba).
-3. Abrir el proyecto en NetBeans 22 (Maven, **JDK 11**) y hacer *Build with Dependencies*.
-4. Ejecutar `util/Conexion.java`: debe imprimir **Conexión exitosa**.
-5. Ejecutar `pruebas/PruebaControladores.java`: todas las pruebas deben pasar.
+- JDK 11
+- Maven 3.8 o posterior
+- MySQL 8.0 o posterior
 
-Usuario de prueba para el login: **admin / admin123**.
+## Compilación
 
-## Para hdmirandaingsi (Modelo)
+Desde la raíz del repositorio:
 
-Cada DAO debe **implementar** su interfaz (ya está en `modelo`), usando
-`PreparedStatement` y `Conexion.getConexion()`:
-
-```java
-public class HabitacionDAO implements IHabitacionDAO { ... }
-public class ClienteDAO    implements IClienteDAO    { ... }
-public class ReservaDAO    implements IReservaDAO    { ... }
-public class UsuarioDAO    implements IUsuarioDAO    { ... }
+```shell
+mvn compile
 ```
 
-Las clases `Habitacion`, `Cliente` y `Reserva` son una base: pueden ampliarse,
-pero sin quitar los métodos que usan los controladores.
+La dependencia MySQL Connector/J 8.3.0 se descarga desde Maven; no se necesita guardar el JAR en el repositorio.
 
-## Para Kevin (Vista)
+## Configuración de MySQL
 
-Crear los controladores pasándoles los DAO de hdmirandaingsi:
+1. Cree una copia local de la plantilla:
 
-```java
-HabitacionControlador hc = new HabitacionControlador(new HabitacionDAO());
-ClienteControlador cc = new ClienteControlador(new ClienteDAO());
-ReservaControlador rc = new ReservaControlador(new ReservaDAO(), new ClienteDAO(), new HabitacionDAO());
-LoginControlador lc = new LoginControlador(new UsuarioDAO());
+   ```shell
+   copy db.properties.example db.properties
+   ```
+
+2. Edite `db.properties` con los datos de conexión de su entorno. Este archivo está excluido de Git. También se aceptan variables `HOTEL_DB_HOST`, `HOTEL_DB_PORT`, `HOTEL_DB_NAME`, `HOTEL_DB_USER` y `HOTEL_DB_PASS`, o propiedades Java `hotel.db.host`, `hotel.db.port`, `hotel.db.name`, `hotel.db.user` y `hotel.db.pass`. Los valores de propiedades Java tienen prioridad, luego las variables de entorno y, por último, `db.properties`.
+3. Cree el esquema con una cuenta MySQL autorizada:
+
+   ```shell
+   mysql -u SU_USUARIO -p < sql/init_hotel_mvc.sql
+   ```
+
+   El script crea la base y tablas faltantes; no elimina datos ni crea cuentas MySQL. La aplicación tampoco prueba usuarios alternativos ni crea el esquema al arrancar.
+4. Configure una cuenta de aplicación en la tabla `usuarios` mediante el procedimiento seguro aprobado para su entorno. No se incluyen cuentas ni contraseñas de demostración. Las contraseñas deben almacenarse como hash y salt compatibles con `SecurityAndValidationUtil`.
+
+Inicie la aplicación desde la raíz del repositorio:
+
+```shell
+mvn org.codehaus.mojo:exec-maven-plugin:3.5.0:java -Dexec.mainClass=com.hotel.mvc.MainHotelMVC
 ```
 
-Los métodos que guardan/modifican devuelven **"OK"** o un mensaje de error:
+El modo predeterminado abre el servidor web y el menú CLI. Use `-Dexec.args=--web` para solo web, `-Dexec.args=--swing` para Swing o `-Dexec.args=--port=PUERTO` para cambiar el puerto. La vista web se sirve en `http://localhost:8085`.
 
-```java
-String r = hc.guardar(txtNumero.getText(), txtTipo.getText(), txtPrecio.getText());
-if (r.equals("OK")) {
-    JOptionPane.showMessageDialog(this, "Guardado correctamente");
-} else {
-    JOptionPane.showMessageDialog(this, r, "Error", JOptionPane.ERROR_MESSAGE);
-}
-```
+## Estructura principal
 
-Las fechas de reserva se envían como texto `dd/MM/yyyy` (ej. `20/11/2026`).
+- `src/main/java/com/hotel/mvc/model`: entidades, estados, reglas de dominio y fábrica de habitaciones.
+- `src/main/java/com/hotel/mvc/dao`: acceso JDBC y consultas parametrizadas.
+- `src/main/java/com/hotel/mvc/controller`: coordinación MVC y servidor HTTP.
+- `src/main/java/com/hotel/mvc/view`: vistas CLI y Swing.
+- `src/main/java/com/hotel/mvc/test`: suite de pruebas integrales existente.
+- `src/main/java/com/hotel/mvc/util`: validaciones, hash de contraseñas y generador de diagramas UML.
+- `web`: interfaz web estática.
+- `sql/init_hotel_mvc.sql`: esquema inicial no destructivo, sin datos personales ni cuentas de prueba.
 
-## Reglas del equipo
-
-- Cada integrante trabaja en su rama y hace commits pequeños desde su cuenta personal.
-- `git pull` antes de empezar y `git push` al terminar cada pieza.
-- El proyecto compila con Java 11 (`maven.compiler.source/target` en `pom.xml`).
-- Si la conexión falla: MySQL no está iniciado, no se ejecutó `sql/hotel.sql`, o el usuario/clave de `Conexion.java` no coinciden.
+La suite `PruebasIntegralesMVC` requiere una base configurada y contiene verificaciones de integración con persistencia; revise sus precondiciones antes de ejecutarla.

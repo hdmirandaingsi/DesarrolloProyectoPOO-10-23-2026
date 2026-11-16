@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel Gran Sol &amp; Montaña | Sistema MVC POO115</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <!-- PANTALLA DE LOGIN (RF-01) -->
+    <div id="login-view" class="login-wrapper">
+        <div class="login-card">
+            <div class="brand-badge">UES · FIA · EISI · POO115</div>
+            <h1>Hotel Gran Sol &amp; Montaña</h1>
+            <p class="subtitle">Sistema de Administración de Reservas (Arquitectura MVC + MySQL 8.0)</p>
+            <div id="login-alert" class="alert hidden"></div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-user">Usuario o Correo Electrónico *</label>
+                    <input type="text" id="login-user" placeholder="Ingrese su usuario o correo configurado" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-pass">Contraseña *</label>
+                    <input type="password" id="login-pass" placeholder="Ingrese su contraseña" autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- APLICACIÓN PRINCIPAL PROTEGIDA (RF-02 a RF-07) -->
+    <div id="app-view" class="app-layout hidden">
+        <header class="topbar">
+            <div class="topbar-brand">
+                <span class="logo-dot"></span>
+                <div>
+                    <strong>Hotel Gran Sol &amp; Montaña</strong>
+                    <small>Clave 1 · MVC · Java HttpServer + JDBC MySQL</small>
+                </div>
+            </div>
+            <nav class="nav-tabs">
+                <button class="tab-btn active" data-tab="tab-dashboard">Resumen</button>
+                <button class="tab-btn" data-tab="tab-clientes">1. Clientes</button>
+                <button class="tab-btn" data-tab="tab-habitaciones">2. Habitaciones</button>
+                <button class="tab-btn" data-tab="tab-disponibilidad">3. Disponibilidad y Costos</button>
+                <button class="tab-btn" data-tab="tab-reservas">4. Reservas</button>
+            </nav>
+            <div class="user-panel">
+                <span id="user-badge" class="user-badge"></span>
+                <button id="btn-logout" class="btn btn-danger btn-sm">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <main class="main-container">
+            <div id="global-alert" class="alert hidden"></div>
+
+            <!-- TAB 0: DASHBOARD -->
+            <section id="tab-dashboard" class="tab-panel active">
+                <div class="section-header">
+                    <h2>Panel General de Operaciones en Tiempo Real</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="cargarTodo()">Actualizar Datos MySQL</button>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-label">Clientes Registrados</span>
+                        <strong id="kpi-clientes" class="kpi-value">0</strong>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Habitaciones (Disp / Ocup / Fuera)</span>
+                        <strong id="kpi-habitaciones" class="kpi-value">0 / 0 / 0</strong>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-label">Reservas (Conf / Comp / Canc)</span>
+                        <strong id="kpi-reservas" class="kpi-value">0 / 0 / 0</strong>
+                    </div>
+                    <div class="kpi-card highlight">
+                        <span class="kpi-label">Ingresos Acumulados (Activos)</span>
+                        <strong id="kpi-ingresos" class="kpi-value">$0.00</strong>
+                    </div>
+                </div>
+
+                <div class="rules-grid">
+                    <div class="rule-card">
+                        <h3>Reglas Polimórficas de Tarifación (Proceso 5)</h3>
+                        <ul>
+                            <li><strong>Habitación Simple:</strong> Tarifa Base × Noches (+10% en Temporada Alta).</li>
+                            <li><strong>Habitación Doble:</strong> Tarifa Base × Noches (+15% en Temporada Alta sobre base) + Desayuno ($15.00/noche).</li>
+                            <li><strong>Habitación Suite:</strong> Tarifa Base × Noches (+25% en Temporada Alta sobre base) + Servicio Premium ($30.00/noche).</li>
+                        </ul>
+                    </div>
+                    <div class="rule-card">
+                        <h3>Reglas de Integridad y Disponibilidad (Procesos 1-4)</h3>
+                        <ul>
+                            <li><strong>Superposición de períodos:</strong> Se bloquea cualquier reserva cuando <code>entradaExistente &lt; salidaSolicitada</code> y <code>salidaExistente &gt; entradaSolicitada</code>.</li>
+                            <li><strong>Integridad Referencial:</strong> No se permite eliminar clientes ni habitaciones con reservas históricas en MySQL.</li>
+                            <li><strong>Máquina de Estados:</strong> Solo las reservas en estado <code>CONFIRMADA</code> pueden cancelarse o modificarse.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 1: PROCESO 1 - GESTIÓN DE CLIENTES -->
+            <section id="tab-clientes" class="tab-panel">
+                <div class="split-grid">
+                    <div class="card">
+                        <h3 id="form-cliente-titulo">1.1 / 1.4 Registrar o Modificar Cliente</h3>
+                        <form id="form-cliente">
+                            <input type="hidden" id="cli-modo" value="crear">
+                            <div class="form-group">
+                                <label>Código Único *</label>
+                                <input type="text" id="cli-codigo" placeholder="Ej: CLI-009">
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre Completo *</label>
+                                <input type="text" id="cli-nombre" placeholder="Nombre y apellidos">
+                            </div>
+                            <div class="form-group">
+                                <label>Documento (DUI / DNI / Pasaporte) *</label>
+                                <input type="text" id="cli-documento" placeholder="Ej: 04512389-1">
+                            </div>
+                            <div class="form-group">
+                                <label>Teléfono *</label>
+                                <input type="text" id="cli-telefono" placeholder="Ej: 7812-3344">
+                            </div>
+                            <div class="form-group">
+                                <label>Correo Electrónico *</label>
+                                <input type="email" id="cli-email" placeholder="cliente@dominio.com">
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Guardar Cliente</button>
+                                <button type="button" class="btn btn-secondary" onclick="limpiarFormCliente()">Limpiar</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-toolbar">
+                            <h3>1.2 / 1.3 Catálogo de Clientes</h3>
+                            <div class="search-box">
+                                <input type="text" id="buscar-cliente-input" placeholder="Buscar por código, documento o nombre...">
+                                <button class="btn btn-secondary btn-sm" onclick="cargarClientes()">Buscar</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Nombre Completo</th>
+                                        <th>Documento</th>
+                                        <th>Teléfono</th>
+                                        <th>Correo</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-clientes-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: PROCESO 2 - GESTIÓN DE HABITACIONES -->
+            <section id="tab-habitaciones" class="tab-panel">
+                <div class="split-grid">
+                    <div class="card">
+                        <h3 id="form-hab-titulo">2.1 / 2.4 Registrar o Modificar Habitación</h3>
+                        <form id="form-habitacion">
+                            <input type="hidden" id="hab-modo" value="crear">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Código Único *</label>
+                                    <input type="text" id="hab-codigo" placeholder="Ej: HAB-104">
+                                </div>
+                                <div class="form-group">
+                                    <label>Número *</label>
+                                    <input type="number" id="hab-numero" placeholder="Ej: 104" min="1">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Tipo (Subclase POO) *</label>
+                                    <select id="hab-tipo">
+                                        <option value="SIMPLE">SIMPLE (+10% Temp. Alta)</option>
+                                        <option value="DOBLE">DOBLE (+$15 Desayuno, +15% T.A.)</option>
+                                        <option value="SUITE">SUITE (+$30 Premium, +25% T.A.)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Capacidad (Huéspedes) *</label>
+                                    <input type="number" id="hab-capacidad" value="2" min="1">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Precio Base / Noche ($) *</label>
+                                    <input type="number" id="hab-precio" step="0.01" placeholder="Ej: 65.00" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Estado Operativo *</label>
+                                    <select id="hab-estado">
+                                        <option value="DISPONIBLE">DISPONIBLE</option>
+                                        <option value="OCUPADA">OCUPADA</option>
+                                        <option value="FUERA_DE_SERVICIO">FUERA_DE_SERVICIO</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Comodidades</label>
+                                <input type="text" id="hab-comodidades" placeholder="Dejar en blanco para usar comodidades de la subclase">
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Guardar Habitación</button>
+                                <button type="button" class="btn btn-secondary" onclick="limpiarFormHabitacion()">Limpiar</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-toolbar">
+                            <h3>2.2 / 2.3 Inventario de Habitaciones</h3>
+                            <div class="search-box">
+                                <input type="text" id="buscar-hab-input" placeholder="Buscar por código, número o tipo...">
+                                <button class="btn btn-secondary btn-sm" onclick="cargarHabitaciones()">Buscar</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>N.º</th>
+                                        <th>Tipo</th>
+                                        <th>Cap.</th>
+                                        <th>Precio/Noche</th>
+                                        <th>Cargo Extra</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-habitaciones-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: PROCESOS 3 Y 5 - CONSULTA DE DISPONIBILIDAD Y CÁLCULO DE COSTO -->
+            <section id="tab-disponibilidad" class="tab-panel">
+                <div class="split-grid">
+                    <div class="card">
+                        <h3>3. Consulta de Disponibilidad por Período</h3>
+                        <form id="form-disponibilidad">
+                            <div class="form-group">
+                                <label>Fecha de Entrada *</label>
+                                <input type="date" id="disp-entrada" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Fecha de Salida *</label>
+                                <input type="date" id="disp-salida" required>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Capacidad Mínima</label>
+                                    <input type="number" id="disp-capacidad" value="1" min="1">
+                                </div>
+                                <div class="form-group">
+                                    <label>Categoría</label>
+                                    <select id="disp-tipo">
+                                        <option value="TODOS">TODAS</option>
+                                        <option value="SIMPLE">SIMPLE</option>
+                                        <option value="DOBLE">DOBLE</option>
+                                        <option value="SUITE">SUITE</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-group checkbox-group">
+                                <label>
+                                    <input type="checkbox" id="disp-temp-alta">
+                                    Simular Temporada Alta (Recargo polimórfico)
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Consultar Habitaciones Disponibles</button>
+                        </form>
+
+                        <div id="cotizacion-box" class="quote-box hidden">
+                            <h4>5. Desglose del Cálculo Polimórfico</h4>
+                            <div id="cotizacion-detalle"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3>3.5 Habitaciones Disponibles sin Conflicto de Fechas</h3>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Hab.</th>
+                                        <th>Tipo</th>
+                                        <th>Capacidad</th>
+                                        <th>Tarifa Base</th>
+                                        <th>Comodidades</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-disponibilidad-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: PROCESO 4 - GESTIÓN DE RESERVAS -->
+            <section id="tab-reservas" class="tab-panel">
+                <div class="split-grid">
+                    <div class="card">
+                        <h3 id="form-res-titulo">4.1 / 4.6 Registrar o Modificar Reserva</h3>
+                        <form id="form-reserva">
+                            <input type="hidden" id="res-modo" value="crear">
+                            <div class="form-group">
+                                <label>Código de Reserva *</label>
+                                <input type="text" id="res-codigo" placeholder="Autogenerado ej: RES-1008">
+                            </div>
+                            <div class="form-group">
+                                <label>Cliente *</label>
+                                <select id="res-cliente"></select>
+                            </div>
+                            <div class="form-group">
+                                <label>Habitación *</label>
+                                <select id="res-habitacion"></select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Fecha Entrada *</label>
+                                    <input type="date" id="res-entrada">
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha Salida *</label>
+                                    <input type="date" id="res-salida">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>N.º Huéspedes *</label>
+                                    <input type="number" id="res-huespedes" value="1" min="1">
+                                </div>
+                                <div class="form-group checkbox-group" style="padding-top:24px;">
+                                    <label>
+                                        <input type="checkbox" id="res-temp-alta">
+                                        Temporada Alta
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="previsualizarCostoReserva()">Calcular Costo (Proc. 5)</button>
+                                <button type="submit" class="btn btn-primary">Confirmar Reserva</button>
+                                <button type="button" class="btn btn-secondary" onclick="limpiarFormReserva()">Limpiar</button>
+                            </div>
+                        </form>
+                        <div id="res-cotizacion-preview" class="quote-box hidden"></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="table-toolbar">
+                            <h3>4.4 Historial y Control de Reservas</h3>
+                            <div class="search-box">
+                                <input type="text" id="buscar-res-input" placeholder="Código, cliente o habitación...">
+                                <select id="filtro-res-estado" onchange="cargarReservas()">
+                                    <option value="TODOS">Todos los estados</option>
+                                    <option value="CONFIRMADA">CONFIRMADA</option>
+                                    <option value="COMPLETADA">COMPLETADA</option>
+                                    <option value="CANCELADA">CANCELADA</option>
+                                </select>
+                                <button class="btn btn-secondary btn-sm" onclick="cargarReservas()">Filtrar</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Código</th>
+                                        <th>Cliente</th>
+                                        <th>Habitación</th>
+                                        <th>Entrada → Salida</th>
+                                        <th>Noches / Huésp.</th>
+                                        <th>Subtotal / Extra</th>
+                                        <th>Total</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-reservas-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
