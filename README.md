@@ -4,7 +4,7 @@ Arquitectura **MVC**:
 
 | Paquete | Responsable | Contenido |
 |---|---|---|
-| `modelo` | Henry | Entidades, interfaces `I...DAO` y las clases DAO con JDBC |
+| `modelo` | hdmirandaingsi | Entidades, interfaces `I...DAO` y las clases DAO con JDBC |
 | `vista` | Kevin | Formularios Java Swing (login, menú, módulos) |
 | `controlador` | René | Validaciones y lógica entre la vista y el modelo |
 | `util` | René | `Conexion` (JDBC) |
@@ -20,7 +20,7 @@ Arquitectura **MVC**:
 
 Usuario de prueba para el login: **admin / admin123**.
 
-## Para Henry (Modelo)
+## Para hdmirandaingsi (Modelo)
 
 Cada DAO debe **implementar** su interfaz (ya está en `modelo`), usando
 `PreparedStatement` y `Conexion.getConexion()`:
@@ -37,7 +37,7 @@ pero sin quitar los métodos que usan los controladores.
 
 ## Para Kevin (Vista)
 
-Crear los controladores pasándoles los DAO de Henry:
+Crear los controladores pasándoles los DAO de hdmirandaingsi:
 
 ```java
 HabitacionControlador hc = new HabitacionControlador(new HabitacionDAO());
